@@ -1,0 +1,58 @@
+#!/bin/bash
+#helper for iodine. Expected to have /etc/iodine-nm-helper.conf
+CONFIG=/etc/iodine-nm-helper.conf
+DEBUG=1
+
+source $CONFIG || (echo "Unable tio parse $CONFIG. Exiting";exit -1)
+test -x `which iodine`||(echo "iodine not found, exiting";exit -1)
+# expected variables:
+# IODINE_SERVIER - domain name to connect via
+# IODINE_PASS - password for iodine connection
+export LC_ALL=C
+export LANG=C
+if [ -z "$IODINE_SERVER" ]; then
+    echo "IODINE_SERVER not defined, exiting"
+    exit -1
+fi
+if [ -z "$IODINE_PASS" ]; then
+    echo "IODINE_PASS not defined, exiting"
+    exit -1
+fi
+
+function active_nm_connection(){
+    #return uuid of active connection or empty line
+    status=`nmcli -f state nm|tail -n -1`
+    if [ $status = connected ] ; then
+        nmcli -f uuid con status|tail -n -1
+    fi
+}
+
+conn=`active_nm_connection`
+if [ -z $conn ]; then 
+    echo "No active connection, exiting"
+    exit 1
+fi
+
+raw_net_settings=`nmcli -f IP conn status uuid $conn|grep "IP4.ADDRESS"|awk -F ':' '{print $2}'`
+ip_address=`echo "$raw_net_settings"|awk -F ',' '{print $1}'|awk -F '=' '{print $2}'`
+gw_address=`echo "$raw_net_settings"|awk -F ',' '{print $2}'|awk -F '=' '{print $2}'`
+dns_array=(`nmcli -f IP conn status uuid $conn|grep "IP4.DNS"|awk -F ':' '{print $2}'`)
+
+if [ $DEBUG -eq 1 ]; then
+    echo connection = $conn
+    echo IP = $ip_address
+    echo GW = $gw_address
+    echo -n DNS:;echo ${dns_array[*]}|xargs -n 1 -d ' ' echo -e "\t"
+    echo Routing plan:
+    echo -n ${dns_array[*]} |xargs -d ' ' -I DNS -n 1 echo -e "\tip route add DNS/32 via $gw_address"
+    echo -e "\tip route delete default"
+    echo -e "\tip route add default via (tbc)"
+fi
+
+iodine -r -P "$IODINE_PASS" "$IODINE_SERVER"
+echo -n ${dns_array[*]} |xargs -d ' ' -I DNS -n 1 ip route add DNS/32 via $gw_address
+ip route delete default
+ip route add default via 10.99.97.1
+ping -c 1 8.8.4.4
+echo '[DONE]'
+
