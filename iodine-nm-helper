@@ -3,11 +3,17 @@
 CONFIG=/etc/iodine-nm-helper.conf
 DEBUG=1
 
-source $CONFIG || (echo "Unable tio parse $CONFIG. Exiting";exit -1)
 test -x `which iodine`||(echo "iodine not found, exiting";exit -1)
+if [ `whoami` != root ]; then
+    echo "Iodine and ip route in this script require root priveleges."
+    echo "Use sudo $0, Luke."
+    exit -1
+fi
+source $CONFIG || (echo "Unable tio parse $CONFIG. Exiting";exit -1)
 # expected variables:
 # IODINE_SERVIER - domain name to connect via
 # IODINE_PASS - password for iodine connection
+# MTU - mtu size (not mandatory)
 export LC_ALL=C
 export LANG=C
 if [ -z "$IODINE_SERVER" ]; then
@@ -17,6 +23,10 @@ fi
 if [ -z "$IODINE_PASS" ]; then
     echo "IODINE_PASS not defined, exiting"
     exit -1
+fi
+
+if [ -n $MTU ]; then
+    mtu_opt="-m $MTU"
 fi
 
 function active_nm_connection(){
@@ -49,7 +59,7 @@ if [ $DEBUG -eq 1 ]; then
     echo -e "\tip route add default via (tbc)"
 fi
 
-iodine -r -P "$IODINE_PASS" "$IODINE_SERVER"
+iodine -r $mtu_opt -P "$IODINE_PASS" "$IODINE_SERVER" 
 echo -n ${dns_array[*]} |xargs -d ' ' -I DNS -n 1 ip route add DNS/32 via $gw_address
 ip route delete default
 ip route add default via 10.99.97.1
