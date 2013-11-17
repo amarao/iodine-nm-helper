@@ -1,5 +1,7 @@
 #!/bin/bash
 #helper for iodine. Expected to have /etc/iodine-nm-helper.conf
+#(c) George Shuklin, 2013. Licensed under GPL v2 terms (cee COPYING for details)
+
 CONFIG=/etc/iodine-nm-helper.conf
 DEBUG=1
 
