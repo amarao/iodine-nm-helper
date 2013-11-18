@@ -16,14 +16,13 @@ source $CONFIG || (echo "Unable tio parse $CONFIG. Exiting";exit -1)
 # IODINE_SERVIER - domain name to connect via
 # IODINE_PASS - password for iodine connection
 # MTU - mtu size (not mandatory)
-# REMOTE - remote (intunnel) address of server (IP iodined started on server with)
+# REMOTE - remote IP
 export LC_ALL=C
 export LANG=C
-test -z "$IODINE_SERVER"  || (echo "IODINE_SERVER not defined, exiting";exit -1)
-test -z "$IODINE_PASS"  ||(echo "IODINE_PASS not defined, exiting";exit -1)
-test -z |"$REMOTE"||(echo "REMOTE is not defined";exit -1)
-
-if [ -n $MTU ]; then
+if [ -z "$IODINE_SERVER" ]; then echo "IODINE_SERVER not defined, exiting";exit -1;fi
+if [ -z "$IODINE_PASS"  ]; then echo "IODINE_PASS not defined, exiting";exit -1;fi
+if [ -z "$REMOTE" ]; then echo "no REMOTE found in config, exiting";exit -1;fi
+if [ -n "$MTU" ]; then
     mtu_opt="-m $MTU"
 fi
 
@@ -53,14 +52,19 @@ if [ $DEBUG -eq 1 ]; then
     echo -n DNS:;echo ${dns_array[*]}|xargs -n 1 -d ' ' echo -e "\t"
     echo Routing plan:
     echo -n ${dns_array[*]} |xargs -d ' ' -I DNS -n 1 echo -e "\tip route add DNS/32 via $gw_address"
-    echo -e "\tip route delete default"
-    echo -e "\tip route add default via $REMOTE"
 fi
-
-iodine -r $mtu_opt -P "$IODINE_PASS" "$IODINE_SERVER" 
+echo $mtu_opt
+iodine -r $mtu_opt -P "$IODINE_PASS" "$IODINE_SERVER"  
+if [ -z $REMOTE ]; then
+    echo Unable to detect remote address, aboring routing changes
+    exit 2
+fi
+if [ $DEBUG -eq 1 ]; then
+    echo Will set default gateway to $REMOTE
+fi
 echo -n ${dns_array[*]} |xargs -d ' ' -I DNS -n 1 ip route add DNS/32 via $gw_address
 ip route delete default
 ip route add default via $REMOTE
-ping -c 1 8.8.4.4
+ping -c 1 -W 60 8.8.4.4
 echo '[DONE]'
 
