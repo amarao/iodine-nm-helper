@@ -40,10 +40,10 @@ if [ -z $conn ]; then
     exit 1
 fi
 
-raw_net_settings=`nmcli -f IP conn status uuid $conn|grep "IP4.ADDRESS"|awk -F ':' '{print $2}'`
+raw_net_settings=`nmcli -f IP con status uuid $conn|grep "IP4.ADDRESS"|awk -F ':' '{print $2}'`
 ip_address=`echo "$raw_net_settings"|awk -F ',' '{print $1}'|awk -F '=' '{print $2}'`
 gw_address=`echo "$raw_net_settings"|awk -F ',' '{print $2}'|awk -F '=' '{print $2}'`
-dns_array=(`nmcli -f IP conn status uuid $conn|grep "IP4.DNS"|awk -F ':' '{print $2}'`)
+dns_array=(`nmcli -f IP con status uuid $conn|grep "IP4.DNS"|awk -F ':' '{print $2}'`)
 
 if [ $DEBUG -eq 1 ]; then
     echo connection = $conn
